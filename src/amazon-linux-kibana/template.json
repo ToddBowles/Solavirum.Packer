@@ -1,0 +1,59 @@
+{
+  "variables": {
+		"aws_access_key" : "",
+		"aws_secret_key" : "",
+		"aws_region" : "",
+		"source_ami" : "",
+		"ami_name": "amazon-linux-kibana",
+		"vpc_id" : "",
+		"subnet_id" : "",
+		"security_group_id": "",
+		"default_vpc_security_group_id": "",
+		"root_directory_path" : "",
+    "manifest_file_output_path" : "",
+		"kibana_version": "5.4.2",
+		"version": ""
+  },
+  "builders": [{
+    "type" : "amazon-ebs",
+    "access_key" : "{{user `aws_access_key`}}",
+    "secret_key" : "{{user `aws_secret_key`}}",
+    "region" : "{{user `aws_region`}}",
+    "instance_type" : "t2.large",
+    "source_ami" : "{{user `source_ami`}}",
+    "vpc_id" : "{{user `vpc_id`}}",
+    "subnet_id" : "{{user `subnet_id`}}",
+    "security_group_ids": ["{{user `security_group_id`}}", "{{user `default_vpc_security_group_id`}}"],
+    "ssh_username": "ec2-user",
+    "ssh_pty": "true",
+    "ami_name": "{{user `ami_name`}}-{{user `version`}}",
+    "tags": {
+      "version": "{{user `version`}}",
+			"os": "Amazon Linux",
+      "kibana-version": "{{user `kibana_version`}}"
+    }
+  }],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "sudo yum remove java-1.7.0-openjdk -y",
+        "sudo yum install java-1.8.0 -y",
+        "sudo yum update -y"
+      ]
+    },
+		{
+			"type" : "shell",
+			"environment_vars": [
+				"kibanaVersion={{user `kibana_version`}}"
+			],
+			"script" : "{{user `root_directory_path`}}/src/amazon-linux-kibana/scripts/install-kibana.sh"
+		}
+  ],
+  "post-processors": [
+    {
+      "type": "manifest",
+      "output": "{{user `manifest_file_output_path`}}"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+#OS junk files
+[Tt]humbs.db
+*.DS_Store
+
+#NuGet
+**/packages/
+*.nupkg
+
+#Build script output
+[Bb]uild-[Oo]utput
+
+**/runs/
+**/working/

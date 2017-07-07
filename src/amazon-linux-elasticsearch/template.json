@@ -1,0 +1,80 @@
+{
+  "variables": {
+		"aws_access_key" : "",
+		"aws_secret_key" : "",
+		"aws_region" : "",
+		"source_ami" : "",
+		"ami_name": "amazon-linux-elasticsearch",
+    "root_directory_path" : "",
+    "manifest_file_output_path" : "",
+		"vpc_id" : "",
+		"subnet_id" : "",
+		"security_group_id": "",
+		"default_vpc_security_group_id": "",
+		"elasticsearch_version": "5.4.2",
+    "jq_version" : "1.5",
+		"version": ""
+  },
+  "builders": [{
+    "type" : "amazon-ebs",
+    "access_key" : "{{user `aws_access_key`}}",
+    "secret_key" : "{{user `aws_secret_key`}}",
+    "region" : "{{user `aws_region`}}",
+    "instance_type" : "t2.micro",
+    "source_ami" : "{{user `source_ami`}}",
+    "vpc_id" : "{{user `vpc_id`}}",
+    "subnet_id" : "{{user `subnet_id`}}",
+    "security_group_ids": ["{{user `security_group_id`}}", "{{user `default_vpc_security_group_id`}}"],
+    "ssh_username": "ec2-user",
+    "ssh_pty": "true",
+    "ami_name": "{{user `ami_name`}}-{{user `version`}}",
+    "tags": {
+      "version": "{{user `version`}}",
+			"os": "Amazon Linux",
+      "elasticsearch-version": "{{user `elasticsearch_version`}}",
+      "jq-version": "{{user `jq_version`}}"
+    }
+  }],
+  "provisioners": [
+    {
+      "type": "file",
+      "source": "{{user `root_directory_path`}}/src/amazon-linux-elasticsearch/scripts/wait-elasticsearch-cluster-health.sh",
+      "destination": "/tmp/wait-elasticsearch-cluster-health.sh"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "set -x",
+        "sudo mkdir -p /opt/elasticsearch/scripts",
+        "sudo mv /tmp/wait-elasticsearch-cluster-health.sh /opt/elasticsearch/scripts/wait-elasticsearch-cluster-health.sh",
+        "sudo chmod u+x /opt/elasticsearch/scripts/wait-elasticsearch-cluster-health.sh",
+        "sudo sed -i 's/\r//' /opt/elasticsearch/scripts/wait-elasticsearch-cluster-health.sh", 
+        "sudo yum remove java-1.7.0-openjdk -y",
+        "sudo yum install java-1.8.0 -y",
+        "sudo yum install jq-{{user `jq_version`}} -y",
+        "sudo rpm --query jq-{{user `jq_version`}}",
+        "sudo yum update -y"
+      ]
+    },
+		{
+			"type" : "shell",
+			"environment_vars": [
+				"elasticsearchVersion={{user `elasticsearch_version`}}"
+			],
+			"script" : "{{user `root_directory_path`}}/src/amazon-linux-elasticsearch/scripts/install-elasticsearch.sh"
+		},
+    {
+      "type": "shell",
+      "inline": [
+        "set -x",
+        "sudo usermod -a -G elasticsearch ec2-user"
+      ]
+    }
+  ],
+  "post-processors": [
+    {
+      "type": "manifest",
+      "output": "{{user `manifest_file_output_path`}}"
+    }
+  ]
+}

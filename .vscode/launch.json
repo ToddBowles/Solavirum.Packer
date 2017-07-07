@@ -1,0 +1,38 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "PowerShell",
+            "request": "launch",
+            "name": "PowerShell Interactive Session",
+            "cwd": "${workspaceRoot}"
+        },
+        {
+            "type": "PowerShell",
+            "request": "launch",
+            "name": "PowerShell Launch (current file)",
+            "script": "${file}",
+            "args": ["-Verbose"],
+            "cwd": "${file}"
+        },
+        {
+            "type": "PowerShell",
+            "request": "launch",
+            "name": "Execute Pester Tests (current file)",
+            "script": "${workspaceRoot}/scripts/common/Invoke-PesterTests.ps1",
+            "args": [
+                "-TestScriptFilePaths @(\"${file}\") -Verbose"
+            ]
+        },
+        {
+            "type": "PowerShell",
+            "request": "launch",
+            "name": "Execute Pester Tests (all files)",
+            "script": "${workspaceRoot}/scripts/common/Invoke-PesterTests.ps1",
+            "args": [
+                "-ExcludeTags @(\"Ignore\")"
+            ],
+            "cwd": "${workspaceRoot}"
+        }
+    ]
+}

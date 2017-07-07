@@ -1,0 +1,97 @@
+{
+	"variables" : 
+	{
+		"aws_access_key" : "",
+		"aws_secret_key" : "",
+		"source_ami" : "",
+		"ami_name" : "windows-mssql-scratch",
+		"vpc_id" : "",
+		"subnet_id" : "",
+		"security_group_id": "",
+		"default_vpc_security_group_id": "",
+		"root_directory_path" : "",
+		"manifest_file_output_path" : "",
+		"version": ""
+	},
+	"builders" : [
+		{
+			"type" : "amazon-ebs",
+			"access_key" : "{{user `aws_access_key`}}",
+			"secret_key" : "{{user `aws_secret_key`}}",
+			"region" : "ap-southeast-2",
+			"source_ami" : "{{user `source_ami`}}",
+			"instance_type" : "m3.large",
+			"ami_name" : "{{user `ami_name`}}-{{user `version`}}",
+			"vpc_id" : "{{user `vpc_id`}}",
+			"subnet_id" : "{{user `subnet_id`}}",
+			"security_group_ids": ["{{user `security_group_id`}}", "{{user `default_vpc_security_group_id`}}"],
+			"user_data_file" : "{{user `root_directory_path`}}\\src\\common\\windows-user-data.txt",
+			"communicator" : "winrm",
+			"winrm_username" : "Administrator",
+			"winrm_use_ssl" : true,
+			"winrm_insecure" : true,
+			"tags" : {
+				"version": "{{user `version`}}",
+				"os" : "Windows Server 2012 R2",
+				"mssql": "2014 SP1 Express"
+			}
+		}
+	],
+	"provisioners" : [
+		{
+			"type": "powershell",
+			"inline": [
+				"tzutil.exe /s \"AUS Eastern Standard Time_dstoff\"",
+				"[Microsoft.Win32.Registry]::SetValue('HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters','NegativeCacheTime',0,[Microsoft.Win32.RegistryValueKind]::DWord)"
+			]
+		},
+		{
+			"type" : "windows-shell",
+			"inline" : [
+				"mkdir C:\\init\\", 
+				"mkdir C:\\init\\tools"
+			]
+		}, 
+		{
+			"type" : "file",
+			"source" : "{{user `root_directory_path`}}\\tools\\nuget.config",
+			"destination" : "C:\\init\\tools\\nuget.config"
+		}, 
+		{
+			"type" : "file",
+			"source" : "{{user `root_directory_path`}}\\tools\\nuget.exe",
+			"destination" : "C:\\init\\tools\\nuget.exe"
+		},		
+		{
+			"type" : "powershell",
+			"inline" : [
+				"$tentacleInstallationFilePath = 'C:\\init\\tools\\Octopus.Tentacle.3.4.14-x64.msi'",
+				"& Invoke-WebRequest https://download.octopusdeploy.com/octopus/Octopus.Tentacle.3.4.14-x64.msi -OutFile $tentacleInstallationFilePath",
+				"Write-Output \"Installing Octopus Tentacle using file [$tentacleInstallationFilePath]\"",
+				"& msiexec.exe /i $tentacleInstallationFilePath /quiet",
+				"Uninstall-WindowsFeature \"Server-Gui-Shell\", \"Server-Gui-Mgmt-Infra\""
+			]
+		},
+		{
+			"type": "windows-shell",
+			"inline": ["rmdir C:\\init\\ /S /Q"]
+		},
+		{
+			"type": "windows-restart",
+			"restart_timeout": "30m"
+		},
+		{
+			"type":"powershell",
+			"scripts": [
+				"{{user `root_directory_path`}}\\src\\common\\edit-ec2configservice-config.ps1",
+				"{{user `root_directory_path`}}\\src\\common\\edit-ec2configservice-bundleconfig.ps1"
+			]
+		}
+	],
+	"post-processors": [
+		{
+		"type": "manifest",
+		"output": "{{user `manifest_file_output_path`}}"
+		}
+	]
+}
